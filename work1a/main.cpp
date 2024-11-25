@@ -1,6 +1,5 @@
 #include <stb/stb_image.h>
 #include <stb/stb_image_write.h>
-
 #include <iostream>
 #include <string.h>
 
@@ -50,6 +49,6 @@ int main(void)
     int result = stbi_write_png("res/textures/GrayScale_Lenna.png", width, height, 1, new_buffer, width * 1); // changed comps
     std::cout << result << std::endl;
     stbi_image_free(buffer);
-    stbi_image_free(new_buffer);
+    free(new_buffer);
     return 0;
 }
