@@ -61,7 +61,7 @@ void blur(unsigned char *img, int num_of_cols, int num_of_rows)
     }
 }
 
-void gradientCalculation(unsigned char *img, int num_of_cols, int num_of_rows)
+vector<float> gradientCalculation(unsigned char *img, int num_of_cols, int num_of_rows)
 {
 
     const int Gx[3][3] = {
@@ -75,6 +75,7 @@ void gradientCalculation(unsigned char *img, int num_of_cols, int num_of_rows)
         {1, 2, 1}};
 
     vector<unsigned char> temp(num_of_cols * num_of_rows);
+    vector<float> angles_vector(num_of_cols * num_of_rows);
 
     int gradient_x, gradient_y;
 
@@ -99,12 +100,111 @@ void gradientCalculation(unsigned char *img, int num_of_cols, int num_of_rows)
 
             int gradient = (sqrt(gradient_x * gradient_x + gradient_y * gradient_y));
             temp[i * num_of_cols + j] = min(255, gradient); // set the gradient in range 0-255
+
+            float angle = atan2((float)gradient_y, (float)gradient_x);
+            angles_vector[i * num_of_cols + j] = angle;
         }
     }
 
     for (int i = 0; i < num_of_rows * num_of_cols; i++)
     {
         img[i] = temp[i];
+    }
+
+    return angles_vector;
+}
+
+void nonMaxSuppression(unsigned char *img, int num_of_cols, int num_of_rows, vector<float> angles)
+{
+    vector<unsigned char> temp(num_of_cols * num_of_rows);
+
+    float angle;
+    int max_pixel = 0;
+    for (int i = 1; i < num_of_rows - 1; i++)
+    {
+        for (int j = 1; j < num_of_cols - 1; j++)
+        {
+            angle = angles[i * num_of_cols + j];
+            if (angle < 0)
+            {
+                angle += 3.14159;
+            }
+
+            if (0 <= angle <= 22.5) //(i,j+1),(i,j-1)
+            {
+                int k = i, p = j;
+                while (p != num_of_cols)
+                {
+                    if (img[k * num_of_cols + p] >= img[k * num_of_cols + p + 1])
+                    {
+                        max_pixel = img[k * num_of_cols + p];
+                    }
+                    p++;
+                }
+                while (p != 0)
+                {
+                    if (img[k * num_of_cols + p] >= img[k * num_of_cols + p - 1])
+                    {
+                        max_pixel = img[k * num_of_cols + p];
+                    }
+                    p--;
+                }
+                if (max_pixel == img[i * num_of_cols + j])
+                {
+                    temp[i * num_of_cols + j] = max_pixel; // else temp =0
+                }
+            }
+            else if (22.5 < angle <= 45) //(i+1,j+1),(i-1,j-1)
+            {
+                int k = i, p = j;
+                while (p != num_of_cols && k != num_of_rows)
+                {
+                    if (img[k * num_of_cols + p] >= img[(k + 1) * num_of_cols + p + 1])
+                    {
+                        max_pixel = img[k * num_of_cols + p];
+                    }
+                    p++;
+                    k++;
+                }
+                while (p != 0 && k != 0)
+                {
+                    if (img[k * num_of_cols + p] >= img[(k - 1) * num_of_cols + p - 1])
+                    {
+                        max_pixel = img[k * num_of_cols + p];
+                    }
+                    p--;
+                    k--;
+                }
+                if (max_pixel == img[i * num_of_cols + j])
+                {
+                    temp[i * num_of_cols + j] = max_pixel; // else temp =0
+                }
+            }
+            else if (45 < angle <= 67.5) //(i+1,j),(i-1,j)
+            {                            // while ((k != 0) && (p != 0) && (k != num_of_rows) && (p != num_of_cols))
+                int k = i, p = j;
+                while (k != num_of_rows)
+                {
+                    if (img[k * num_of_cols + p] >= img[(k + 1) * num_of_cols + p])
+                    {
+                        max_pixel = img[k * num_of_cols + p];
+                    }
+                    k++;
+                }
+                while (k != 0)
+                {
+                    if (img[k * num_of_cols + p] >= img[(k - 1) * num_of_cols + p])
+                    {
+                        max_pixel = img[k * num_of_cols + p];
+                    }
+                    k--;
+                }
+                if (max_pixel == img[i * num_of_cols + j])
+                {
+                    temp[i * num_of_cols + j] = max_pixel; // else temp =0
+                }
+            }
+        }
     }
 }
 
@@ -115,7 +215,7 @@ int main(void)
     int req_comps = 1;
     unsigned char *buffer = stbi_load(filepath.c_str(), &width, &height, &comps, req_comps);
     blur(buffer, width, height);
-    gradientCalculation(buffer, width, height);
+    vector<float> angles = gradientCalculation(buffer, width, height);
 
     printf("%d\n", comps);
     int result = stbi_write_png("res/textures/Gradient_Lenna.png", width, height, req_comps, buffer, width * comps);
